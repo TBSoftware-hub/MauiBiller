@@ -1,13 +1,8 @@
 using MauiBiller.Pages.Shared;
+using MauiBiller.ViewModels;
 
 namespace MauiBiller.Pages.Workspace;
 
-public sealed class InviteTeamMembersPage : AppPlaceholderPage
+public sealed class InviteTeamMembersPage(InviteTeamMembersPageViewModel viewModel) : FeaturePage<InviteTeamMembersPageViewModel>(viewModel)
 {
-    public InviteTeamMembersPage()
-        : base(
-            "Invite Team Members",
-            "Manage invitations for time-entry contributors while keeping the owner as the workspace administrator.")
-    {
-    }
 }

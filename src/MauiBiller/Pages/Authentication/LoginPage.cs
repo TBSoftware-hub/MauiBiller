@@ -1,16 +1,8 @@
-using MauiBiller.Navigation;
 using MauiBiller.Pages.Shared;
+using MauiBiller.ViewModels;
 
 namespace MauiBiller.Pages.Authentication;
 
-public sealed class LoginPage : AppPlaceholderPage
+public sealed class LoginPage(LoginPageViewModel viewModel) : FeaturePage<LoginPageViewModel>(viewModel)
 {
-    public LoginPage()
-        : base(
-            "Login",
-            "Sign in to a MauiBiller workspace with the Firebase Auth-backed experience and move into the authenticated shell.",
-            CreateAction("Open Register", AppRoutes.Register),
-            CreateAction("Open Reset Password", AppRoutes.ResetPassword))
-    {
-    }
 }

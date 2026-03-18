@@ -1,13 +1,8 @@
 using MauiBiller.Pages.Shared;
+using MauiBiller.ViewModels;
 
 namespace MauiBiller.Pages.Authentication;
 
-public sealed class RegisterPage : AppPlaceholderPage
+public sealed class RegisterPage(RegisterPageViewModel viewModel) : FeaturePage<RegisterPageViewModel>(viewModel)
 {
-    public RegisterPage()
-        : base(
-            "Register",
-            "Capture the owner onboarding flow for creating a new MauiBiller workspace and establishing the first authenticated user.")
-    {
-    }
 }
