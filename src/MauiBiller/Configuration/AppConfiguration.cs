@@ -23,6 +23,18 @@ public sealed class AppConfiguration
 
 public sealed class FirebaseConfiguration
 {
+    public string ApiKey
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string AuthDomain
+    {
+        get;
+        init;
+    } = string.Empty;
+
     public string ProjectId
     {
         get;
@@ -39,7 +51,31 @@ public sealed class FirebaseConfiguration
     {
         get;
         init;
-    } = "OAuth";
+    } = "Password";
+
+    public string StorageBucket
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string MessagingSenderId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string AppId
+    {
+        get;
+        init;
+    } = string.Empty;
+
+    public string MeasurementId
+    {
+        get;
+        init;
+    } = string.Empty;
 }
 
 public sealed class DiagnosticsConfiguration

@@ -15,4 +15,19 @@ public static class AppRoutes
     public const string ProjectWorkItems = "project-work-items";
     public const string AddManualTime = "add-manual-time";
     public const string CreateInvoice = "create-invoice";
+
+    public static bool IsAuthenticationRoute(string route)
+    {
+        return route is Login or Register or ResetPassword;
+    }
+
+    public static bool IsTopLevelRoute(string route)
+    {
+        return route is Login or Clients or Projects or Timer or Billing or Settings;
+    }
+
+    public static string AsRoot(string route)
+    {
+        return $"//{route}";
+    }
 }

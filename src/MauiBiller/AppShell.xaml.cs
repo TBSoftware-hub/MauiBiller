@@ -1,4 +1,6 @@
-﻿using MauiBiller.Configuration;
+using MauiBiller.Configuration;
+using MauiBiller.Core.Models;
+using MauiBiller.Core.Services;
 using MauiBiller.Navigation;
 using MauiBiller.Pages.Authentication;
 using MauiBiller.Pages.Billing;
@@ -13,16 +15,26 @@ namespace MauiBiller;
 
 public partial class AppShell : Shell
 {
+    private readonly IAuthenticationService authenticationService;
+    private readonly IAuthSessionService authSessionService;
     private readonly IServiceProvider serviceProvider;
+    private bool hasInitializedSession;
 
-    public AppShell(AppConfiguration appConfiguration, IServiceProvider serviceProvider)
+    public AppShell(
+        AppConfiguration appConfiguration,
+        IServiceProvider serviceProvider,
+        IAuthenticationService authenticationService,
+        IAuthSessionService authSessionService)
     {
         InitializeComponent();
 
+        this.authenticationService = authenticationService;
+        this.authSessionService = authSessionService;
         this.serviceProvider = serviceProvider;
         BindingContext = appConfiguration;
         RegisterRoutes();
-        BuildFlyout();
+        authSessionService.SessionChanged += OnSessionChanged;
+        ApplyShellState();
     }
 
     private void RegisterRoutes()
@@ -36,14 +48,25 @@ public partial class AppShell : Shell
         Routing.RegisterRoute(AppRoutes.CreateInvoice, new ServiceRouteFactory<CreateInvoicePage>(serviceProvider));
     }
 
-    private void BuildFlyout()
+    private void ApplyShellState()
     {
+        Items.Clear();
+        ToolbarItems.Clear();
+
+        if (authSessionService.IsAuthenticated)
+        {
+            Items.Add(CreateFlyoutItem("Clients", AppRoutes.Clients, typeof(ClientsPage)));
+            Items.Add(CreateFlyoutItem("Projects", AppRoutes.Projects, typeof(ProjectsPage)));
+            Items.Add(CreateFlyoutItem("Timer", AppRoutes.Timer, typeof(TimerPage)));
+            Items.Add(CreateFlyoutItem("Billing", AppRoutes.Billing, typeof(BillingPage)));
+            Items.Add(CreateFlyoutItem("Settings", AppRoutes.Settings, typeof(SettingsPage)));
+            ToolbarItems.Add(new ToolbarItem("Sign Out", null, async () => await authenticationService.SignOutAsync()));
+            CurrentItem = Items.FirstOrDefault();
+            return;
+        }
+
         Items.Add(CreateFlyoutItem("Login", AppRoutes.Login, typeof(LoginPage)));
-        Items.Add(CreateFlyoutItem("Clients", AppRoutes.Clients, typeof(ClientsPage)));
-        Items.Add(CreateFlyoutItem("Projects", AppRoutes.Projects, typeof(ProjectsPage)));
-        Items.Add(CreateFlyoutItem("Timer", AppRoutes.Timer, typeof(TimerPage)));
-        Items.Add(CreateFlyoutItem("Billing", AppRoutes.Billing, typeof(BillingPage)));
-        Items.Add(CreateFlyoutItem("Settings", AppRoutes.Settings, typeof(SettingsPage)));
+        CurrentItem = Items.FirstOrDefault();
     }
 
     private FlyoutItem CreateFlyoutItem(string title, string route, Type pageType)
@@ -62,5 +85,28 @@ public partial class AppShell : Shell
                 }
             }
         };
+    }
+
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+
+        if (hasInitializedSession)
+        {
+            return;
+        }
+
+        hasInitializedSession = true;
+        await authSessionService.InitializeAsync();
+        await GoToAsync(AppRoutes.AsRoot(authSessionService.IsAuthenticated ? AppRoutes.Clients : AppRoutes.Login));
+    }
+
+    private void OnSessionChanged(object? sender, AuthSessionChangedEventArgs eventArgs)
+    {
+        Dispatcher.Dispatch(async () =>
+        {
+            ApplyShellState();
+            await GoToAsync(AppRoutes.AsRoot(eventArgs.IsAuthenticated ? AppRoutes.Clients : AppRoutes.Login));
+        });
     }
 }
