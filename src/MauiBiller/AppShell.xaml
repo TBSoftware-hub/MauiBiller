@@ -3,13 +3,7 @@
     x:Class="MauiBiller.AppShell"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:auth="clr-namespace:MauiBiller.Pages.Authentication"
-    xmlns:billing="clr-namespace:MauiBiller.Pages.Billing"
-    xmlns:clients="clr-namespace:MauiBiller.Pages.Clients"
     xmlns:config="clr-namespace:MauiBiller.Configuration"
-    xmlns:projects="clr-namespace:MauiBiller.Pages.Projects"
-    xmlns:settings="clr-namespace:MauiBiller.Pages.Settings"
-    xmlns:timeTracking="clr-namespace:MauiBiller.Pages.TimeTracking"
     x:DataType="config:AppConfiguration"
     Title="MauiBiller">
 
@@ -31,35 +25,5 @@
                 Text="{Binding Firebase.ProjectId, StringFormat='Firebase project: {0}'}" />
         </Grid>
     </Shell.FlyoutHeader>
-
-    <ShellContent
-        Title="Login"
-        ContentTemplate="{DataTemplate auth:LoginPage}"
-        Route="login" />
-
-    <ShellContent
-        Title="Clients"
-        ContentTemplate="{DataTemplate clients:ClientsPage}"
-        Route="clients" />
-
-    <ShellContent
-        Title="Projects"
-        ContentTemplate="{DataTemplate projects:ProjectsPage}"
-        Route="projects" />
-
-    <ShellContent
-        Title="Timer"
-        ContentTemplate="{DataTemplate timeTracking:TimerPage}"
-        Route="timer" />
-
-    <ShellContent
-        Title="Billing"
-        ContentTemplate="{DataTemplate billing:BillingPage}"
-        Route="billing" />
-
-    <ShellContent
-        Title="Settings"
-        ContentTemplate="{DataTemplate settings:SettingsPage}"
-        Route="settings" />
 
 </Shell>

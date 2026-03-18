@@ -1,15 +1,8 @@
-using MauiBiller.Navigation;
 using MauiBiller.Pages.Shared;
+using MauiBiller.ViewModels;
 
 namespace MauiBiller.Pages.Billing;
 
-public sealed class BillingPage : AppPlaceholderPage
+public sealed class BillingPage(BillingPageViewModel viewModel) : FeaturePage<BillingPageViewModel>(viewModel)
 {
-    public BillingPage()
-        : base(
-            "Billing",
-            "Review billable time, expenses, and recurring invoice data before creating a client-ready PDF invoice.",
-            CreateAction("Open Create Invoice", AppRoutes.CreateInvoice))
-    {
-    }
 }

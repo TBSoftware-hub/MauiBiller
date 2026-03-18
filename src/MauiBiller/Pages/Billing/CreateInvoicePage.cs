@@ -1,13 +1,8 @@
 using MauiBiller.Pages.Shared;
+using MauiBiller.ViewModels;
 
 namespace MauiBiller.Pages.Billing;
 
-public sealed class CreateInvoicePage : AppPlaceholderPage
+public sealed class CreateInvoicePage(CreateInvoicePageViewModel viewModel) : FeaturePage<CreateInvoicePageViewModel>(viewModel)
 {
-    public CreateInvoicePage()
-        : base(
-            "Create Invoice",
-            "Assemble invoice data into a reviewable draft that will later feed the cross-platform PDF generation flow.")
-    {
-    }
 }

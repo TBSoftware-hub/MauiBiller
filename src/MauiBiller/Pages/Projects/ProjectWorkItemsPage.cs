@@ -1,13 +1,8 @@
 using MauiBiller.Pages.Shared;
+using MauiBiller.ViewModels;
 
 namespace MauiBiller.Pages.Projects;
 
-public sealed class ProjectWorkItemsPage : AppPlaceholderPage
+public sealed class ProjectWorkItemsPage(ProjectWorkItemsPageViewModel viewModel) : FeaturePage<ProjectWorkItemsPageViewModel>(viewModel)
 {
-    public ProjectWorkItemsPage()
-        : base(
-            "Project Work Items",
-            "Define individual billable activities and agreed rates that shape time capture and invoice line items.")
-    {
-    }
 }

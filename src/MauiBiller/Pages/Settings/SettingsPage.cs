@@ -1,13 +1,8 @@
 using MauiBiller.Pages.Shared;
+using MauiBiller.ViewModels;
 
 namespace MauiBiller.Pages.Settings;
 
-public sealed class SettingsPage : AppPlaceholderPage
+public sealed class SettingsPage(SettingsPageViewModel viewModel) : FeaturePage<SettingsPageViewModel>(viewModel)
 {
-    public SettingsPage()
-        : base(
-            "Settings",
-            "Expose account controls, environment-aware configuration visibility, and sync diagnostics in a single starting point.")
-    {
-    }
 }
