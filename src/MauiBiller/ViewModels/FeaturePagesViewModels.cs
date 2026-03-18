@@ -5,66 +5,6 @@ using MauiBiller.Navigation;
 
 namespace MauiBiller.ViewModels;
 
-public sealed class LoginPageViewModel(
-    IWorkspaceSnapshotService snapshotService,
-    INavigationService navigationService,
-    AppConfiguration appConfiguration) : FeaturePageViewModel(navigationService, "Login")
-{
-    protected override async Task LoadAsync()
-    {
-        var snapshot = await snapshotService.GetCurrentSnapshotAsync();
-
-        Summary = "The login experience now hangs off a repository-backed workspace snapshot and a DI-composed navigation flow instead of static placeholder text.";
-        ReplaceMetrics(
-        [
-            Metric("Environment", appConfiguration.EnvironmentName, appConfiguration.Firebase.ProjectId),
-            Metric("Workspace", snapshot.Workspace.Name, $"{snapshot.Workspace.Members.Count} seeded members"),
-            Metric("Active clients", snapshot.Clients.Count(client => !client.IsArchived).ToString(), "Ready for real auth wiring")
-        ]);
-        ReplaceActions(
-        [
-            CreateNavigationAction("Open Register", "Review the owner onboarding route.", AppRoutes.Register),
-            CreateNavigationAction("Open Reset Password", "Review the recovery route.", AppRoutes.ResetPassword)
-        ]);
-    }
-}
-
-public sealed class RegisterPageViewModel(
-    IWorkspaceSnapshotService snapshotService,
-    INavigationService navigationService) : FeaturePageViewModel(navigationService, "Register")
-{
-    protected override async Task LoadAsync()
-    {
-        var snapshot = await snapshotService.GetCurrentSnapshotAsync();
-
-        Summary = "Registration is now modelled as the owner entry point into a concrete workspace model with seeded members and downstream feature routes.";
-        ReplaceMetrics(
-        [
-            Metric("Workspace owner", snapshot.Workspace.OwnerName, snapshot.Workspace.OwnerEmail),
-            Metric("Contributor seats", snapshot.Workspace.Members.Count(member => member.Role is WorkspaceMemberRole.Contributor).ToString(), "MVP owner + invited-member model")
-        ]);
-        ReplaceActions([]);
-    }
-}
-
-public sealed class ResetPasswordPageViewModel(
-    AppConfiguration appConfiguration,
-    INavigationService navigationService) : FeaturePageViewModel(navigationService, "Reset Password")
-{
-    protected override Task LoadAsync()
-    {
-        Summary = "Reset password is isolated behind the auth layer so Firebase wiring can be swapped in without touching the page shell or route composition.";
-        ReplaceMetrics(
-        [
-            Metric("OAuth provider", appConfiguration.Firebase.OAuthProvider, "Configured through embedded app settings"),
-            Metric("Environment", appConfiguration.EnvironmentName, "Ready for secure auth implementation")
-        ]);
-        ReplaceActions([]);
-
-        return Task.CompletedTask;
-    }
-}
-
 public sealed class InviteTeamMembersPageViewModel(
     IWorkspaceSnapshotService snapshotService,
     INavigationService navigationService) : FeaturePageViewModel(navigationService, "Invite Team Members")

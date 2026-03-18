@@ -27,6 +27,7 @@ public static class MauiAppBuilderExtensions
 
     public static MauiAppBuilder RegisterApplicationServices(this MauiAppBuilder builder)
     {
+        builder.Services.AddSingleton<HttpClient>();
         builder.Services.AddSingleton<InMemoryWorkspaceStore>();
         builder.Services.AddSingleton<IWorkspaceRepository, InMemoryWorkspaceRepository>();
         builder.Services.AddSingleton<IClientRepository, InMemoryClientRepository>();
@@ -36,6 +37,10 @@ public static class MauiAppBuilderExtensions
         builder.Services.AddSingleton<IExpenseRepository, InMemoryExpenseRepository>();
         builder.Services.AddSingleton<IInvoiceDraftRepository, InMemoryInvoiceDraftRepository>();
 
+        builder.Services.AddSingleton<ISecureValueStore, SecureValueStore>();
+        builder.Services.AddSingleton<FirebaseAuthenticationService>();
+        builder.Services.AddSingleton<IAuthenticationService>(serviceProvider => serviceProvider.GetRequiredService<FirebaseAuthenticationService>());
+        builder.Services.AddSingleton<IAuthSessionService>(serviceProvider => serviceProvider.GetRequiredService<FirebaseAuthenticationService>());
         builder.Services.AddSingleton<INavigationService, ShellNavigationService>();
         builder.Services.AddSingleton<IWorkspaceSnapshotService, WorkspaceSnapshotService>();
 
