@@ -29,13 +29,14 @@ public static class MauiAppBuilderExtensions
     {
         builder.Services.AddSingleton<HttpClient>();
         builder.Services.AddSingleton<InMemoryWorkspaceStore>();
-        builder.Services.AddSingleton<IWorkspaceRepository, InMemoryWorkspaceRepository>();
-        builder.Services.AddSingleton<IClientRepository, InMemoryClientRepository>();
-        builder.Services.AddSingleton<IProjectRepository, InMemoryProjectRepository>();
-        builder.Services.AddSingleton<IWorkItemRepository, InMemoryWorkItemRepository>();
-        builder.Services.AddSingleton<ITimeEntryRepository, InMemoryTimeEntryRepository>();
-        builder.Services.AddSingleton<IExpenseRepository, InMemoryExpenseRepository>();
-        builder.Services.AddSingleton<IInvoiceDraftRepository, InMemoryInvoiceDraftRepository>();
+        builder.Services.AddSingleton<LocalWorkspaceStore>();
+        builder.Services.AddSingleton<IWorkspaceRepository, LocalWorkspaceRepository>();
+        builder.Services.AddSingleton<IClientRepository, LocalClientRepository>();
+        builder.Services.AddSingleton<IProjectRepository, LocalProjectRepository>();
+        builder.Services.AddSingleton<IWorkItemRepository, LocalWorkItemRepository>();
+        builder.Services.AddSingleton<ITimeEntryRepository, LocalTimeEntryRepository>();
+        builder.Services.AddSingleton<IExpenseRepository, LocalExpenseRepository>();
+        builder.Services.AddSingleton<IInvoiceDraftRepository, LocalInvoiceDraftRepository>();
 
         builder.Services.AddSingleton<ISecureValueStore, SecureValueStore>();
         builder.Services.AddSingleton<FirebaseAuthenticationService>();
