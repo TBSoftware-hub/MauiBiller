@@ -1,81 +1,131 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using MauiBiller.Core.Models;
+using MauiBiller.Core.Services;
 using SQLite;
 
 namespace MauiBiller.Infrastructure.Data;
 
-public sealed class LocalWorkspaceStore(InMemoryWorkspaceStore seedData)
+public sealed class LocalWorkspaceStore(
+    InMemoryWorkspaceStore seedData,
+    IAuthSessionService authSessionService)
 {
-    private readonly SemaphoreSlim initializationLock = new(1, 1);
-    private readonly SQLiteAsyncConnection connection = new(
-        Path.Combine(FileSystem.AppDataDirectory, "mauibiller.db3"),
-        SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.Create | SQLiteOpenFlags.SharedCache);
+    private const SQLiteOpenFlags ConnectionFlags =
+        SQLiteOpenFlags.ReadWrite |
+        SQLiteOpenFlags.Create |
+        SQLiteOpenFlags.SharedCache;
 
-    private bool isInitialized;
+    private readonly SemaphoreSlim initializationLock = new(1, 1);
+    private readonly ConcurrentDictionary<string, SQLiteAsyncConnection> connections = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> initializedDatabasePaths = new(StringComparer.OrdinalIgnoreCase);
+
+    public async Task<WorkspaceBootstrapResult> EnsureOwnerWorkspaceAsync(CancellationToken cancellationToken = default)
+    {
+        var user = GetCurrentUser();
+        var (databasePath, connection) = GetConnectionForCurrentUser(user);
+        await EnsureInitializedAsync(connection, databasePath, cancellationToken);
+
+        var existingProfile = await connection.Table<OwnerProfileRecord>()
+            .FirstOrDefaultAsync(profile => profile.UserId == user.UserId);
+
+        if (existingProfile is not null)
+        {
+            existingProfile.Email = user.Email;
+            existingProfile.DisplayName = GetOwnerDisplayName(user);
+            existingProfile.LastSignedInUtcTicks = DateTimeOffset.UtcNow.UtcTicks;
+            await connection.InsertOrReplaceAsync(existingProfile);
+
+            var workspace = await LoadWorkspaceAsync(connection, existingProfile.WorkspaceId);
+            return new WorkspaceBootstrapResult(workspace, existingProfile.ToModel(), false);
+        }
+
+        var snapshot = seedData.CreateOwnerBootstrapSnapshot(user);
+        var ownerProfile = OwnerProfileRecord.Create(user, snapshot.Workspace.Id);
+
+        await connection.InsertAsync(WorkspaceRecord.FromModel(snapshot.Workspace));
+        await connection.InsertAllAsync(snapshot.Workspace.Members.Select(member => WorkspaceMemberRecord.FromModel(snapshot.Workspace.Id, member)).ToList());
+        await connection.InsertAllAsync(snapshot.Clients.Select(ClientRecord.FromModel).ToList());
+        await connection.InsertAllAsync(snapshot.Projects.Select(ProjectRecord.FromModel).ToList());
+        await connection.InsertAllAsync(snapshot.WorkItems.Select(WorkItemRecord.FromModel).ToList());
+        await connection.InsertAllAsync(snapshot.TimeEntries.Select(TimeEntryRecord.FromModel).ToList());
+        await connection.InsertAllAsync(snapshot.Expenses.Select(ExpenseRecord.FromModel).ToList());
+        await connection.InsertAllAsync(snapshot.InvoiceDrafts.Select(InvoiceDraftRecord.FromModel).ToList());
+        await connection.InsertAsync(ownerProfile);
+
+        return new WorkspaceBootstrapResult(snapshot.Workspace, ownerProfile.ToModel(), true);
+    }
 
     public async Task<Workspace> GetWorkspaceAsync(CancellationToken cancellationToken = default)
     {
-        await EnsureInitializedAsync(cancellationToken);
-
-        var workspaceRecord = await connection.Table<WorkspaceRecord>().FirstAsync();
-        var memberRecords = await connection.Table<WorkspaceMemberRecord>()
-            .Where(member => member.WorkspaceId == workspaceRecord.Id)
-            .ToListAsync();
-
-        return workspaceRecord.ToModel(memberRecords.Select(member => member.ToModel()).ToList());
+        var bootstrapResult = await EnsureOwnerWorkspaceAsync(cancellationToken);
+        return bootstrapResult.Workspace;
     }
 
     public async Task<IReadOnlyList<Client>> ListClientsAsync(CancellationToken cancellationToken = default)
     {
-        await EnsureInitializedAsync(cancellationToken);
-
+        var (_, connection) = await EnsureCurrentConnectionAsync(cancellationToken);
         var records = await connection.Table<ClientRecord>().ToListAsync();
         return records.Select(record => record.ToModel()).ToList();
     }
 
     public async Task<IReadOnlyList<Project>> ListProjectsAsync(CancellationToken cancellationToken = default)
     {
-        await EnsureInitializedAsync(cancellationToken);
-
+        var (_, connection) = await EnsureCurrentConnectionAsync(cancellationToken);
         var records = await connection.Table<ProjectRecord>().ToListAsync();
         return records.Select(record => record.ToModel()).ToList();
     }
 
     public async Task<IReadOnlyList<WorkItem>> ListWorkItemsAsync(CancellationToken cancellationToken = default)
     {
-        await EnsureInitializedAsync(cancellationToken);
-
+        var (_, connection) = await EnsureCurrentConnectionAsync(cancellationToken);
         var records = await connection.Table<WorkItemRecord>().ToListAsync();
         return records.Select(record => record.ToModel()).ToList();
     }
 
     public async Task<IReadOnlyList<TimeEntry>> ListTimeEntriesAsync(CancellationToken cancellationToken = default)
     {
-        await EnsureInitializedAsync(cancellationToken);
-
+        var (_, connection) = await EnsureCurrentConnectionAsync(cancellationToken);
         var records = await connection.Table<TimeEntryRecord>().ToListAsync();
         return records.Select(record => record.ToModel()).ToList();
     }
 
     public async Task<IReadOnlyList<Expense>> ListExpensesAsync(CancellationToken cancellationToken = default)
     {
-        await EnsureInitializedAsync(cancellationToken);
-
+        var (_, connection) = await EnsureCurrentConnectionAsync(cancellationToken);
         var records = await connection.Table<ExpenseRecord>().ToListAsync();
         return records.Select(record => record.ToModel()).ToList();
     }
 
     public async Task<IReadOnlyList<InvoiceDraft>> ListInvoiceDraftsAsync(CancellationToken cancellationToken = default)
     {
-        await EnsureInitializedAsync(cancellationToken);
-
+        var (_, connection) = await EnsureCurrentConnectionAsync(cancellationToken);
         var records = await connection.Table<InvoiceDraftRecord>().ToListAsync();
         return records.Select(record => record.ToModel()).ToList();
     }
 
-    private async Task EnsureInitializedAsync(CancellationToken cancellationToken)
+    private async Task<(AuthenticatedUser User, SQLiteAsyncConnection Connection)> EnsureCurrentConnectionAsync(CancellationToken cancellationToken)
     {
-        if (isInitialized)
+        var bootstrapResult = await EnsureOwnerWorkspaceAsync(cancellationToken);
+        var user = new AuthenticatedUser(
+            bootstrapResult.OwnerProfile.UserId,
+            bootstrapResult.OwnerProfile.Email,
+            bootstrapResult.OwnerProfile.DisplayName);
+        return (user, GetConnectionForCurrentUser(user).Connection);
+    }
+
+    private (string DatabasePath, SQLiteAsyncConnection Connection) GetConnectionForCurrentUser(AuthenticatedUser user)
+    {
+        var databasePath = Path.Combine(FileSystem.AppDataDirectory, $"mauibiller-{SanitizeFileNameSegment(user.UserId)}.db3");
+        var connection = connections.GetOrAdd(databasePath, path => new SQLiteAsyncConnection(path, ConnectionFlags));
+        return (databasePath, connection);
+    }
+
+    private async Task EnsureInitializedAsync(
+        SQLiteAsyncConnection connection,
+        string databasePath,
+        CancellationToken cancellationToken)
+    {
+        if (initializedDatabasePaths.Contains(databasePath))
         {
             return;
         }
@@ -84,7 +134,7 @@ public sealed class LocalWorkspaceStore(InMemoryWorkspaceStore seedData)
 
         try
         {
-            if (isInitialized)
+            if (initializedDatabasePaths.Contains(databasePath))
             {
                 return;
             }
@@ -97,13 +147,9 @@ public sealed class LocalWorkspaceStore(InMemoryWorkspaceStore seedData)
             await connection.CreateTableAsync<TimeEntryRecord>();
             await connection.CreateTableAsync<ExpenseRecord>();
             await connection.CreateTableAsync<InvoiceDraftRecord>();
+            await connection.CreateTableAsync<OwnerProfileRecord>();
 
-            if (await connection.Table<WorkspaceRecord>().CountAsync() == 0)
-            {
-                await SeedAsync();
-            }
-
-            isInitialized = true;
+            initializedDatabasePaths.Add(databasePath);
         }
         finally
         {
@@ -111,16 +157,34 @@ public sealed class LocalWorkspaceStore(InMemoryWorkspaceStore seedData)
         }
     }
 
-    private async Task SeedAsync()
+    private static string GetOwnerDisplayName(AuthenticatedUser user)
     {
-        await connection.InsertAsync(WorkspaceRecord.FromModel(seedData.Workspace));
-        await connection.InsertAllAsync(seedData.Workspace.Members.Select(member => WorkspaceMemberRecord.FromModel(seedData.Workspace.Id, member)).ToList());
-        await connection.InsertAllAsync(seedData.Clients.Select(ClientRecord.FromModel).ToList());
-        await connection.InsertAllAsync(seedData.Projects.Select(ProjectRecord.FromModel).ToList());
-        await connection.InsertAllAsync(seedData.WorkItems.Select(WorkItemRecord.FromModel).ToList());
-        await connection.InsertAllAsync(seedData.TimeEntries.Select(TimeEntryRecord.FromModel).ToList());
-        await connection.InsertAllAsync(seedData.Expenses.Select(ExpenseRecord.FromModel).ToList());
-        await connection.InsertAllAsync(seedData.InvoiceDrafts.Select(InvoiceDraftRecord.FromModel).ToList());
+        return string.IsNullOrWhiteSpace(user.DisplayName)
+            ? user.Email.Split('@')[0]
+            : user.DisplayName.Trim();
+    }
+
+    private static string SanitizeFileNameSegment(string input)
+    {
+        var invalidCharacters = Path.GetInvalidFileNameChars();
+        return string.Concat(input.Select(character => invalidCharacters.Contains(character) ? '_' : character));
+    }
+
+    private AuthenticatedUser GetCurrentUser()
+    {
+        return authSessionService.CurrentUser
+            ?? throw new InvalidOperationException("Workspace data requires an authenticated user.");
+    }
+
+    private static async Task<Workspace> LoadWorkspaceAsync(SQLiteAsyncConnection connection, string workspaceId)
+    {
+        var workspaceRecord = await connection.Table<WorkspaceRecord>()
+            .FirstAsync(record => record.Id == workspaceId);
+        var memberRecords = await connection.Table<WorkspaceMemberRecord>()
+            .Where(member => member.WorkspaceId == workspaceRecord.Id)
+            .ToListAsync();
+
+        return workspaceRecord.ToModel(memberRecords.Select(member => member.ToModel()).ToList());
     }
 
     [Table("workspace")]
@@ -339,5 +403,46 @@ public sealed class LocalWorkspaceStore(InMemoryWorkspaceStore seedData)
             Amount = invoiceDraft.Amount,
             IsRecurring = invoiceDraft.IsRecurring
         };
+    }
+
+    [Table("owner_profile")]
+    private sealed class OwnerProfileRecord
+    {
+        [PrimaryKey]
+        public string UserId { get; set; } = string.Empty;
+
+        public string Email { get; set; } = string.Empty;
+
+        public string DisplayName { get; set; } = string.Empty;
+
+        public string WorkspaceId { get; set; } = string.Empty;
+
+        public long FirstSignedInUtcTicks { get; set; }
+
+        public long LastSignedInUtcTicks { get; set; }
+
+        public WorkspaceOwnerProfile ToModel() =>
+            new(
+                UserId,
+                Email,
+                DisplayName,
+                WorkspaceId,
+                new DateTimeOffset(FirstSignedInUtcTicks, TimeSpan.Zero),
+                new DateTimeOffset(LastSignedInUtcTicks, TimeSpan.Zero));
+
+        public static OwnerProfileRecord Create(AuthenticatedUser user, string workspaceId)
+        {
+            var now = DateTimeOffset.UtcNow;
+
+            return new OwnerProfileRecord
+            {
+                UserId = user.UserId,
+                Email = user.Email,
+                DisplayName = GetOwnerDisplayName(user),
+                WorkspaceId = workspaceId,
+                FirstSignedInUtcTicks = now.UtcTicks,
+                LastSignedInUtcTicks = now.UtcTicks
+            };
+        }
     }
 }

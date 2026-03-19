@@ -17,6 +17,7 @@ public partial class AppShell : Shell
 {
     private readonly IAuthenticationService authenticationService;
     private readonly IAuthSessionService authSessionService;
+    private readonly IWorkspaceBootstrapService workspaceBootstrapService;
     private readonly IServiceProvider serviceProvider;
     private bool hasInitializedSession;
 
@@ -24,12 +25,14 @@ public partial class AppShell : Shell
         AppConfiguration appConfiguration,
         IServiceProvider serviceProvider,
         IAuthenticationService authenticationService,
-        IAuthSessionService authSessionService)
+        IAuthSessionService authSessionService,
+        IWorkspaceBootstrapService workspaceBootstrapService)
     {
         InitializeComponent();
 
         this.authenticationService = authenticationService;
         this.authSessionService = authSessionService;
+        this.workspaceBootstrapService = workspaceBootstrapService;
         this.serviceProvider = serviceProvider;
         BindingContext = appConfiguration;
         RegisterRoutes();
@@ -98,13 +101,17 @@ public partial class AppShell : Shell
 
         hasInitializedSession = true;
         await authSessionService.InitializeAsync();
-        await GoToAsync(AppRoutes.AsRoot(authSessionService.IsAuthenticated ? AppRoutes.Clients : AppRoutes.Login));
     }
 
     private void OnSessionChanged(object? sender, AuthSessionChangedEventArgs eventArgs)
     {
         Dispatcher.Dispatch(async () =>
         {
+            if (eventArgs.IsAuthenticated)
+            {
+                await workspaceBootstrapService.EnsureWorkspaceReadyAsync();
+            }
+
             ApplyShellState();
             await GoToAsync(AppRoutes.AsRoot(eventArgs.IsAuthenticated ? AppRoutes.Clients : AppRoutes.Login));
         });

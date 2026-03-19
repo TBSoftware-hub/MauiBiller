@@ -68,3 +68,16 @@ public sealed record WorkspaceSnapshot(
     IReadOnlyList<TimeEntry> TimeEntries,
     IReadOnlyList<Expense> Expenses,
     IReadOnlyList<InvoiceDraft> InvoiceDrafts);
+
+public sealed record WorkspaceOwnerProfile(
+    string UserId,
+    string Email,
+    string DisplayName,
+    string WorkspaceId,
+    DateTimeOffset FirstSignedInAtUtc,
+    DateTimeOffset LastSignedInAtUtc);
+
+public sealed record WorkspaceBootstrapResult(
+    Workspace Workspace,
+    WorkspaceOwnerProfile OwnerProfile,
+    bool IsFirstSignIn);
