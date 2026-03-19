@@ -68,6 +68,35 @@ public sealed class LocalWorkspaceStore(
         return records.Select(record => record.ToModel()).ToList();
     }
 
+    public async Task<Client?> GetClientAsync(string clientId, CancellationToken cancellationToken = default)
+    {
+        var (_, connection) = await EnsureCurrentConnectionAsync(cancellationToken);
+        var record = await connection.Table<ClientRecord>()
+            .FirstOrDefaultAsync(client => client.Id == clientId);
+        return record?.ToModel();
+    }
+
+    public async Task SaveClientAsync(Client client, CancellationToken cancellationToken = default)
+    {
+        var (_, connection) = await EnsureCurrentConnectionAsync(cancellationToken);
+        await connection.InsertOrReplaceAsync(ClientRecord.FromModel(client));
+    }
+
+    public async Task ArchiveClientAsync(string clientId, CancellationToken cancellationToken = default)
+    {
+        var (_, connection) = await EnsureCurrentConnectionAsync(cancellationToken);
+        var record = await connection.Table<ClientRecord>()
+            .FirstOrDefaultAsync(client => client.Id == clientId);
+
+        if (record is null)
+        {
+            throw new InvalidOperationException($"Client '{clientId}' was not found.");
+        }
+
+        record.IsArchived = true;
+        await connection.InsertOrReplaceAsync(record);
+    }
+
     public async Task<IReadOnlyList<Project>> ListProjectsAsync(CancellationToken cancellationToken = default)
     {
         var (_, connection) = await EnsureCurrentConnectionAsync(cancellationToken);

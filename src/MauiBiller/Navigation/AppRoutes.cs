@@ -2,6 +2,9 @@ namespace MauiBiller.Navigation;
 
 public static class AppRoutes
 {
+    public const string ClientIdQueryParameter = "clientId";
+    public const string ClientModeQueryParameter = "mode";
+    public const string ClientModeNew = "new";
     public const string Login = "login";
     public const string Clients = "clients";
     public const string Projects = "projects";
