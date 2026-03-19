@@ -4,11 +4,13 @@ namespace MauiBiller.Infrastructure.Data;
 
 public sealed class InMemoryWorkspaceStore
 {
+    private const string SeedOwnerMemberId = "owner-1";
+
     public InMemoryWorkspaceStore()
     {
         var members = new[]
         {
-            new WorkspaceMember("owner-1", "Tim Bentley", "tim@tbsoftware.dev", WorkspaceMemberRole.Owner),
+            new WorkspaceMember(SeedOwnerMemberId, "Tim Bentley", "tim@tbsoftware.dev", WorkspaceMemberRole.Owner),
             new WorkspaceMember("member-1", "Alex Rivera", "alex@tbsoftware.dev", WorkspaceMemberRole.Contributor),
             new WorkspaceMember("member-2", "Jordan Kim", "jordan@tbsoftware.dev", WorkspaceMemberRole.Contributor)
         };
@@ -95,5 +97,37 @@ public sealed class InMemoryWorkspaceStore
     public IReadOnlyList<InvoiceDraft> InvoiceDrafts
     {
         get;
+    }
+
+    public WorkspaceSnapshot CreateOwnerBootstrapSnapshot(AuthenticatedUser owner)
+    {
+        var ownerDisplayName = string.IsNullOrWhiteSpace(owner.DisplayName)
+            ? owner.Email.Split('@')[0]
+            : owner.DisplayName;
+        var ownerMember = new WorkspaceMember(owner.UserId, ownerDisplayName, owner.Email, WorkspaceMemberRole.Owner);
+        var members = new List<WorkspaceMember> { ownerMember };
+        members.AddRange(Workspace.Members.Where(member => member.Role is not WorkspaceMemberRole.Owner));
+
+        var workspace = new Workspace(
+            "workspace-1",
+            $"{ownerDisplayName}'s Workspace",
+            ownerMember.FullName,
+            ownerMember.Email,
+            members);
+
+        var timeEntries = TimeEntries
+            .Select(entry => entry.MemberId == SeedOwnerMemberId
+                ? entry with { MemberId = ownerMember.Id }
+                : entry)
+            .ToList();
+
+        return new WorkspaceSnapshot(
+            workspace,
+            Clients.ToList(),
+            Projects.ToList(),
+            WorkItems.ToList(),
+            timeEntries,
+            Expenses.ToList(),
+            InvoiceDrafts.ToList());
     }
 }

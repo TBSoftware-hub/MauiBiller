@@ -11,3 +11,8 @@ public interface IWorkspaceSnapshotService
 {
     Task<WorkspaceSnapshot> GetCurrentSnapshotAsync(CancellationToken cancellationToken = default);
 }
+
+public interface IWorkspaceBootstrapService
+{
+    Task<WorkspaceBootstrapResult> EnsureWorkspaceReadyAsync(CancellationToken cancellationToken = default);
+}

@@ -43,6 +43,7 @@ public static class MauiAppBuilderExtensions
         builder.Services.AddSingleton<IAuthenticationService>(serviceProvider => serviceProvider.GetRequiredService<FirebaseAuthenticationService>());
         builder.Services.AddSingleton<IAuthSessionService>(serviceProvider => serviceProvider.GetRequiredService<FirebaseAuthenticationService>());
         builder.Services.AddSingleton<INavigationService, ShellNavigationService>();
+        builder.Services.AddSingleton<IWorkspaceBootstrapService, WorkspaceBootstrapService>();
         builder.Services.AddSingleton<IWorkspaceSnapshotService, WorkspaceSnapshotService>();
 
         builder.Services.AddSingleton<AppShell>();
