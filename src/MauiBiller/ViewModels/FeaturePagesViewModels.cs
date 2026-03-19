@@ -24,51 +24,6 @@ public sealed class InviteTeamMembersPageViewModel(
     }
 }
 
-public sealed class ClientsPageViewModel(
-    IWorkspaceSnapshotService snapshotService,
-    INavigationService navigationService) : FeaturePageViewModel(navigationService, "Clients")
-{
-    protected override async Task LoadAsync()
-    {
-        var snapshot = await snapshotService.GetCurrentSnapshotAsync();
-        var activeClients = snapshot.Clients.Where(client => !client.IsArchived).ToList();
-
-        Summary = "Client management now reads from repository abstractions and a shared workspace snapshot, which gives the rest of the app a stable model to build on.";
-        ReplaceMetrics(
-        [
-            Metric("Active clients", activeClients.Count.ToString(), string.Join(", ", activeClients.Select(client => client.Name))),
-            Metric("Archived clients", snapshot.Clients.Count(client => client.IsArchived).ToString(), "Available for later archive management flows"),
-            Metric("Client contacts", activeClients.Count.ToString(), "Contact metadata lives in platform-independent core models")
-        ]);
-        ReplaceActions(
-        [
-            CreateNavigationAction("Open Client Details", "Inspect the seeded client-detail route.", AppRoutes.ClientDetails),
-            CreateNavigationAction("Invite Team Members", "Jump to the workspace invitation flow.", AppRoutes.InviteTeamMembers)
-        ]);
-    }
-}
-
-public sealed class ClientDetailsPageViewModel(
-    IWorkspaceSnapshotService snapshotService,
-    INavigationService navigationService) : FeaturePageViewModel(navigationService, "Client Details")
-{
-    protected override async Task LoadAsync()
-    {
-        var snapshot = await snapshotService.GetCurrentSnapshotAsync();
-        var client = snapshot.Clients.First(client => !client.IsArchived);
-        var projectCount = snapshot.Projects.Count(project => project.ClientId == client.Id && !project.IsArchived);
-
-        Summary = "Client details are wired to the shared domain layer so later pages can load the same client model without duplicating state or assumptions.";
-        ReplaceMetrics(
-        [
-            Metric("Selected client", client.Name, client.ContactName),
-            Metric("Projects", projectCount.ToString(), "Derived from the project repository abstraction"),
-            Metric("Contact email", client.ContactEmail, "Ready for billing metadata and invoice recipients")
-        ]);
-        ReplaceActions([]);
-    }
-}
-
 public sealed class ProjectsPageViewModel(
     IWorkspaceSnapshotService snapshotService,
     INavigationService navigationService) : FeaturePageViewModel(navigationService, "Projects")

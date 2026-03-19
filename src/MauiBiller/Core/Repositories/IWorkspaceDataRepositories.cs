@@ -10,6 +10,9 @@ public interface IWorkspaceRepository
 public interface IClientRepository
 {
     Task<IReadOnlyList<Client>> ListAsync(CancellationToken cancellationToken = default);
+    Task<Client?> GetByIdAsync(string clientId, CancellationToken cancellationToken = default);
+    Task SaveAsync(Client client, CancellationToken cancellationToken = default);
+    Task ArchiveAsync(string clientId, CancellationToken cancellationToken = default);
 }
 
 public interface IProjectRepository

@@ -17,6 +17,21 @@ public sealed class LocalClientRepository(LocalWorkspaceStore store) : IClientRe
     {
         return store.ListClientsAsync(cancellationToken);
     }
+
+    public Task<Client?> GetByIdAsync(string clientId, CancellationToken cancellationToken = default)
+    {
+        return store.GetClientAsync(clientId, cancellationToken);
+    }
+
+    public Task SaveAsync(Client client, CancellationToken cancellationToken = default)
+    {
+        return store.SaveClientAsync(client, cancellationToken);
+    }
+
+    public Task ArchiveAsync(string clientId, CancellationToken cancellationToken = default)
+    {
+        return store.ArchiveClientAsync(clientId, cancellationToken);
+    }
 }
 
 public sealed class LocalProjectRepository(LocalWorkspaceStore store) : IProjectRepository
